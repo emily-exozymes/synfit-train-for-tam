@@ -1,0 +1,74 @@
+{
+  "$schema": "https://app.tamarind.bio/tamarind-tool.schema.json",
+  "displayName": "SynFit-Train",
+  "description": "Train a SynFit multi-objective protein fitness model from a DMS CSV.",
+  "functions": [
+    "Two-stage training: Stage 1 trains a per-objective baseline head (BT loss + KL anchor), Stage 2 jointly fine-tunes the shared encoder across both objectives.",
+    "Requires exactly 2 DMS_score_* columns in the input CSV - SynFit's joint model is hardcoded to 2 heads.",
+    "Backbone: facebook/esm2_t33_650M_UR50D, pre-cached in the image.",
+    "Outputs a zip with Stage-1 checkpoints, Stage-2 joint checkpoint (use this with SynFit-Predict), and per-epoch Spearman logs for every fold requested.",
+    "Single A100 GPU - the paper uses multi-GPU for Stage 2; this runs DataParallel with a single device."
+  ],
+  "gpuType": "A100",
+  "cpu": 8,
+  "memory": "64Gi",
+  "maxRuntimeSeconds": 86400,
+  "inputs": [
+    {
+      "name": "training_csv",
+      "displayName": "Training CSV",
+      "type": "file",
+      "extension": ["csv"],
+      "required": true,
+      "descr": "DMS dataset in SynFit format: must have 'mutant' (e.g. 'A126C'), 'mutated_sequence' (full variant sequence), and exactly two 'DMS_score_*' columns - one per objective. See dataset/multi_fitness_data/ in the SynFit repo for examples."
+    },
+    {
+      "name": "protein_name",
+      "displayName": "Protein name",
+      "type": "text",
+      "required": true,
+      "default": "MY_PROTEIN",
+      "descr": "Identifier used for output folder naming. Letters, numbers, and underscores."
+    },
+    {
+      "name": "num_folds",
+      "displayName": "Cross-validation folds to train",
+      "type": "number",
+      "required": false,
+      "default": 1,
+      "lowerBound": 1,
+      "upperBound": 5,
+      "descr": "Number of CV folds to run (1-5). 1 fold trains a single model fast; 5 folds reproduces the paper. Each fold runs Stage 1 (2 baselines) then Stage 2."
+    },
+    {
+      "name": "seed",
+      "displayName": "Random seed",
+      "type": "number",
+      "required": false,
+      "default": 42,
+      "lowerBound": 0,
+      "upperBound": 100000,
+      "descr": "Random seed for reproducibility."
+    },
+    {
+      "name": "max_epochs_stage1",
+      "displayName": "Stage 1 max epochs",
+      "type": "number",
+      "required": false,
+      "default": 80,
+      "lowerBound": 1,
+      "upperBound": 200,
+      "descr": "Maximum epochs per per-objective baseline (Stage 1). Early-stopping kicks in after 10 epochs without validation Spearman improvement."
+    },
+    {
+      "name": "max_epochs_stage2",
+      "displayName": "Stage 2 max epochs",
+      "type": "number",
+      "required": false,
+      "default": 60,
+      "lowerBound": 1,
+      "upperBound": 200,
+      "descr": "Maximum epochs for the joint shared-module training (Stage 2). Early-stopping at 10 epochs without improvement."
+    }
+  ]
+}
