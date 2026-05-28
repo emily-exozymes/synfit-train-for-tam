@@ -12,9 +12,13 @@ RUN micromamba install -y -n base -c conda-forge \
 
 ENV PATH=/opt/conda/bin:$PATH
 
-# PyTorch 2.4.0 + CUDA 12.1 (matches SynFit README exactly)
+# PyTorch 2.4.0 + CUDA 12.1 (matches SynFit README exactly).
+# Use --extra-index-url so PyPI stays in the search path for torch's
+# transitive deps (fsspec, sympy, etc.) - --index-url alone replaces PyPI
+# entirely and the build fails on missing fsspec.
 RUN pip install --no-cache-dir \
-    torch==2.4.0 --index-url https://download.pytorch.org/whl/cu121
+    --extra-index-url https://download.pytorch.org/whl/cu121 \
+    torch==2.4.0
 
 # Full SynFit training stack
 RUN pip install --no-cache-dir \
