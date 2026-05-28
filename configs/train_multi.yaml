@@ -1,0 +1,16 @@
+model: ESM-1v
+metrics: ['ee', 'Yield']
+# metrics: ['function', 'abundance']
+batch_size: 4
+k_folds: 5
+fold: 0
+train_ratio: 0.8
+max_epochs: 30
+ini_lr: 5e-4
+min_lr: 1e-4
+weight_decay: 0
+endure_time: 5
+lora_r: 8
+lora_alpha: 8
+lora_dropout: 0.1
+end_layer: 20
