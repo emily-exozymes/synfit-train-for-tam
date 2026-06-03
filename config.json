@@ -7,9 +7,9 @@
     "Requires exactly 2 DMS_score_* columns in the input CSV - SynFit's joint model is hardcoded to 2 heads.",
     "Backbone: facebook/esm2_t33_650M_UR50D, pre-cached in the image.",
     "Outputs a zip with Stage-1 checkpoints, Stage-2 joint checkpoint (use this with SynFit-Predict), and per-epoch Spearman logs for every fold requested.",
-    "Single A100 GPU - the paper uses multi-GPU for Stage 2; this runs DataParallel with a single device."
+    "Single L40S GPU (48 GB VRAM) - the paper uses multi-GPU for Stage 2; this runs DataParallel on one device. L40S is faster to schedule on Tamarind than A100."
   ],
-  "gpuType": "A100",
+  "gpuType": "L40S",
   "cpu": 8,
   "memory": "64Gi",
   "maxRuntimeSeconds": 86400,
