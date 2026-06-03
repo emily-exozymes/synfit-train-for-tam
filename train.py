@@ -51,12 +51,18 @@ if len(dms_cols) != 2:
 print(f"Found {len(df)} variants and {len(dms_cols)} objectives: {dms_cols}")
 
 # ---------- Stage the CSV where SynFit expects it ----------
-# Repo root is /app at runtime. SynFit scripts look in dataset/multi_fitness_data/.
-data_dir = "/app/dataset/multi_fitness_data"
+# SynFit's utils.py (at /app/utils.py) computes the data dir as
+# os.path.dirname(__file__) + '/multi_fitness_data/<protein>.csv'
+# which resolves to /app/multi_fitness_data/, NOT /app/dataset/multi_fitness_data/.
+# Stage to /app/multi_fitness_data/ so the GeneralMultiFitnessDataset finds it.
+# Also stage a copy at the cwd-relative path as a belt-and-suspenders fallback.
+data_dir = "/app/multi_fitness_data"
 os.makedirs(data_dir, exist_ok=True)
 staged = os.path.join(data_dir, f"{PROTEIN}.csv")
 shutil.copy(input_csv, staged)
 print(f"Staged CSV at {staged}")
+# Also stage at cwd in case the search order changes upstream.
+shutil.copy(input_csv, f"/app/{PROTEIN}.csv")
 
 # ---------- GPU check ----------
 import torch
