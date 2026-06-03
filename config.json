@@ -13,6 +13,13 @@
   "cpu": 8,
   "memory": "64Gi",
   "maxRuntimeSeconds": 86400,
+  "envVars": {
+    "HF_HUB_OFFLINE": "1",
+    "TRANSFORMERS_OFFLINE": "1",
+    "HF_HOME": "/opt/hf_cache",
+    "HUGGINGFACE_HUB_CACHE": "/opt/hf_cache",
+    "TRANSFORMERS_CACHE": "/opt/hf_cache"
+  },
   "inputs": [
     {
       "name": "training_csv",
