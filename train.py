@@ -131,37 +131,52 @@ for fold in range(NUM_FOLDS):
         sys.exit(f"ERROR: Stage 2 failed (fold={fold}, rc={rc})")
 
 # ---------- Collect outputs ----------
+# Tamarind has a soft cap on output upload size. The Stage-1 baseline
+# checkpoints are ~2.6 GB EACH (one per metric per fold), and the Stage-2
+# joint checkpoint is another 2.6 GB. Bundling all of them blew past
+# the upload limit and got the job flagged "Internal Error" even though
+# training succeeded. So:
+#   - Only the Stage-2 joint checkpoint(s) ship as deliverables (Predict
+#     consumes these).
+#   - The bundle zip ships ONLY the per-epoch result logs (.txt files),
+#     not the checkpoints. Logs are tiny; useful for debugging/reporting.
+#   - Stage-1 baselines are intermediates that can be regenerated.
 os.makedirs("out", exist_ok=True)
 print("\nCollecting outputs...")
 
-bundle_root = f"out/synfit-train-{PROTEIN}"
+bundle_root = f"out/synfit-train-{PROTEIN}-logs"
 os.makedirs(bundle_root, exist_ok=True)
 
-# Copy Stage-1 + Stage-2 results into the bundle
+# Copy only the result.txt files (per-epoch Spearman logs), no checkpoints.
+import fnmatch
 for src_subdir in ("results", "joint_results"):
-    src = f"/app/{src_subdir}"
-    if os.path.isdir(src):
-        dst = os.path.join(bundle_root, src_subdir)
-        shutil.copytree(src, dst, dirs_exist_ok=True)
-        print(f"  copied {src} -> {dst}")
-    else:
-        print(f"  WARNING: {src} not found")
+    src_root = f"/app/{src_subdir}"
+    if not os.path.isdir(src_root):
+        print(f"  WARNING: {src_root} not found")
+        continue
+    for dirpath, dirnames, filenames in os.walk(src_root):
+        for fname in filenames:
+            if fnmatch.fnmatch(fname, "*.txt"):
+                src_file = os.path.join(dirpath, fname)
+                rel = os.path.relpath(src_file, "/app")
+                dst_file = os.path.join(bundle_root, rel)
+                os.makedirs(os.path.dirname(dst_file), exist_ok=True)
+                shutil.copy(src_file, dst_file)
+    print(f"  copied result logs from {src_root}")
 
-# Also surface the Stage-2 joint checkpoint(s) at the top level of out/
-# for convenience - that's what SynFit-Predict consumes.
+# Surface the Stage-2 joint checkpoint(s) - this is what Predict consumes.
 for fold in range(NUM_FOLDS):
     src = f"/app/joint_results/{PROTEIN}/fold_{fold}/seed_{SEED}/best_model.pth"
     if os.path.exists(src):
         dst = f"out/joint_model_fold{fold}.pth"
         shutil.copy(src, dst)
-        print(f"  joint checkpoint: {dst}")
+        print(f"  joint checkpoint: {dst}  ({os.path.getsize(dst)/1e9:.2f} GB)")
     else:
         print(f"  WARNING: expected joint checkpoint not found: {src}")
 
-# Zip the full bundle
+# Tiny zip of just the logs.
 archive_path = shutil.make_archive(bundle_root, "zip", root_dir=bundle_root)
-print(f"  zipped: {archive_path}")
-# Remove the unzipped tree to keep the output listing tidy
+print(f"  zipped logs: {archive_path}  ({os.path.getsize(archive_path)/1e6:.2f} MB)")
 shutil.rmtree(bundle_root)
 
 print("\nDone.")
