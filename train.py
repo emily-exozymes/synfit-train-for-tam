@@ -165,12 +165,25 @@ for src_subdir in ("results", "joint_results"):
     print(f"  copied result logs from {src_root}")
 
 # Surface the Stage-2 joint checkpoint(s) - this is what Predict consumes.
+# The raw checkpoint is the full ESM2-650M state dict in fp32 (~2.6 GB),
+# which is over Tamarind's per-file output-upload cap and gets the job
+# flagged "Internal Error" even though training finished cleanly. Re-save
+# in fp16 to halve the file to ~1.3 GB. Only floating-point tensors are
+# cast; integer/bool buffers (position ids, masks) are left untouched. On
+# reload, load_state_dict upcasts fp16 -> the model's fp32 params, so the
+# keys are identical and SynFit-Predict loads it unchanged (only the stored
+# precision differs, which is negligible for inference ranking).
 for fold in range(NUM_FOLDS):
     src = f"/app/joint_results/{PROTEIN}/fold_{fold}/seed_{SEED}/best_model.pth"
     if os.path.exists(src):
         dst = f"out/joint_model_fold{fold}.pth"
-        shutil.copy(src, dst)
-        print(f"  joint checkpoint: {dst}  ({os.path.getsize(dst)/1e9:.2f} GB)")
+        sd = torch.load(src, map_location="cpu")
+        sd = {
+            k: (v.half() if torch.is_tensor(v) and torch.is_floating_point(v) else v)
+            for k, v in sd.items()
+        }
+        torch.save(sd, dst)
+        print(f"  joint checkpoint (fp16): {dst}  ({os.path.getsize(dst)/1e9:.2f} GB)")
     else:
         print(f"  WARNING: expected joint checkpoint not found: {src}")
 
